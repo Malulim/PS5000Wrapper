@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -7,14 +7,15 @@ using Wrapper;
 // 首先确认reading channel working correctly 可以同时开第二个picoscope确认data receiving
 class DebugReadExample
 {
-    const int BUFFER_SIZE = 1000;
+    const int BUFFER_SIZE = 10000;
     static volatile bool g_ready = false;
 
-    static void BlockReady(short handle, uint status, IntPtr pParameter)
+    static uint BlockReady(short handle, uint status, IntPtr pParameter)
     {
         Console.WriteLine($"[Callback] ps5000aBlockReady() called with status=0x{status:X8}");
         if (status != 0x0000003A) // PICO_CANCELLED = 0x3A
             g_ready = true;
+        return 0;
     }
 
     static int AdcToMv(short raw, ApiWrapper.PS5000A_RANGE rangeIndex, short maxADC)
@@ -29,7 +30,7 @@ class DebugReadExample
         uint status;
         short maxADC;
         short[] buffer = new short[BUFFER_SIZE];
-        uint timebase = 8;
+        uint timebase = 96;
         int timeIntervalNs, maxSamples;
         int timeIndisposed;
 
@@ -51,7 +52,7 @@ class DebugReadExample
             ApiWrapper.PS5000A_CHANNEL.PS5000A_CHANNEL_A,
             1,
             ApiWrapper.PS5000A_COUPLING.PS5000A_DC,
-            ApiWrapper.PS5000A_RANGE.PS5000A_5V,
+            ApiWrapper.PS5000A_RANGE.PS5000A_2V,
             0.0f);
         Console.WriteLine($"[SetChannel] status=0x{status:X8}");
 
