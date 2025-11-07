@@ -4,7 +4,11 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Wrapper;
 
-// 首先确认reading channel working correctly 可以同时开第二个picoscope确认data receiving
+// TODO： next steps
+// - prepare guidelines for using the wrapper
+// - implement different examples
+// - write example for generating signals with AWG
+// - set up trigger circuit and write example for triggered captures
 class DebugReadExample
 {
     const int BUFFER_SIZE = 10000;
@@ -130,7 +134,7 @@ class DebugReadExample
 
             for (int i = 0; i < sampleCount; i++)
             {
-                int mv = AdcToMv(buffer[i], ApiWrapper.PS5000A_RANGE.PS5000A_5V, maxADC);
+                int mv = AdcToMv(buffer[i], ApiWrapper.PS5000A_RANGE.PS5000A_2V, maxADC);
                 sw.WriteLine($"{i}\t{(long)i * timeIntervalNs}\t{buffer[i]}\t{mv}");
             }
         }
