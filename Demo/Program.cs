@@ -7,7 +7,7 @@ using Wrapper;
 // TODO： next steps
 // - prepare guidelines for using the wrapper
 // - implement different examples
-// - write example for generating signals with AWG
+    // - write example for generating signals with AWG
 // - set up trigger circuit and write example for triggered captures
 class DebugReadExample
 {
@@ -34,7 +34,7 @@ class DebugReadExample
         uint status;
         short maxADC;
         short[] buffer = new short[BUFFER_SIZE];
-        uint timebase = 96;
+        uint timebase = 128;
         int timeIntervalNs, maxSamples;
         int timeIndisposed;
 
@@ -128,7 +128,7 @@ class DebugReadExample
             sw.WriteLine("================================");
             sw.WriteLine($"Samples: {sampleCount}");
             sw.WriteLine($"Timebase: {timebase} (Sample interval: {timeIntervalNs} ns)");
-            sw.WriteLine("Range: 5V, DC coupled\n");
+            sw.WriteLine("Range: 2V, DC coupled\n");
             sw.WriteLine("Sample\tTime(ns)\tADC\tmV");
             sw.WriteLine("------\t--------\t---\t--");
 
