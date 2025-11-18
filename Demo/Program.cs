@@ -120,7 +120,7 @@ class DebugReadExample
             ApiWrapper.PS5000A_RATIO_MODE.PS5000A_RATIO_MODE_NONE, 0, null);
         Console.WriteLine($"[GetValues] status=0x{status:X8}, sampleCount={sampleCount}");
 
-        // --- 11. Write to file ---
+        // --- 11a. Write to text file (header + data) ---
         using (StreamWriter sw = new StreamWriter("channel_a_data.txt"))
         {
             sw.WriteLine("PicoScope 5000A - Channel A Data");
@@ -139,6 +139,22 @@ class DebugReadExample
         }
 
         Console.WriteLine($"[File] Data written to channel_a_data.txt ({sampleCount} samples)");
+
+        // --- 11b. Write binary file: [int32 sampleCount][records: int32 sample, int64 timeNs, int16 adc, int32 mv] ---
+        using (FileStream fs = new FileStream("channel_a_data.bin", FileMode.Create, FileAccess.Write, FileShare.None))
+        using (BinaryWriter bw = new BinaryWriter(fs))
+        {
+            bw.Write((int)sampleCount); // header: sample count
+            for (int i = 0; i < sampleCount; i++)
+            {
+                int mv = AdcToMv(buffer[i], channelRange, maxADC);
+                bw.Write(i);                           // int32 Sample
+                bw.Write((long)i * timeIntervalNs);    // int64 Time(ns)
+                bw.Write(buffer[i]);                   // int16 ADC
+                bw.Write(mv);                          // int32 mV
+            }
+        }
+        Console.WriteLine($"[File] Binary data written to channel_a_data.bin ({4 + sampleCount * (4 + 8 + 2 + 4)} bytes)");
 
         // --- 12. Cleanup ---
         ApiWrapper.ps5000aStop(handle);
