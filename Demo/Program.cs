@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading;
 using Wrapper;
 
@@ -13,6 +12,7 @@ class DebugReadExample
 {
     const int BUFFER_SIZE = 10000;
     static volatile bool g_ready = false;
+    static readonly int[] InputRangesMv = { 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 };
 
     static uint BlockReady(short handle, uint status, IntPtr pParameter)
     {
@@ -24,8 +24,7 @@ class DebugReadExample
 
     static int AdcToMv(short raw, ApiWrapper.PS5000A_RANGE rangeIndex, short maxADC)
     {
-        int[] inputRanges = { 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 };
-        return (raw * inputRanges[(int)rangeIndex]) / maxADC;
+        return (raw * InputRangesMv[(int)rangeIndex]) / maxADC;
     }
 
     static void Main()
@@ -34,17 +33,21 @@ class DebugReadExample
         uint status;
         short maxADC;
         short[] buffer = new short[BUFFER_SIZE];
-        uint timebase = 128;
+        uint timebase = 127; // sampling interval: 40 nanosecond for 8 bit resolution
         int timeIntervalNs, maxSamples;
         int timeIndisposed;
+        
+        const double triggerVoltage = 2.5; // volts
+        const ApiWrapper.PS5000A_RANGE channelRange = ApiWrapper.PS5000A_RANGE.PS5000A_2V;
+        const double externalRangeMv = 10000.0; // +-10V
+        const short externalMaxAdc = ApiWrapper.PS5000A_EXT_MAX_VALUE;
 
         Console.WriteLine("=== PicoScope 5000A Debug Read ===");
 
         // --- 1. Open device ---
         status = ApiWrapper.ps5000aOpenUnit(out handle, null, ApiWrapper.PS5000A_DEVICE_RESOLUTION.PS5000A_DR_8BIT);
         Console.WriteLine($"[OpenUnit] status=0x{status:X8}, handle={handle}");
-        if (status != 0)
-            return;
+        if (status != 0) return;
 
         // --- 2. Get max ADC value ---
         status = ApiWrapper.ps5000aMaximumValue(handle, out maxADC);
@@ -56,7 +59,7 @@ class DebugReadExample
             ApiWrapper.PS5000A_CHANNEL.PS5000A_CHANNEL_A,
             1,
             ApiWrapper.PS5000A_COUPLING.PS5000A_DC,
-            ApiWrapper.PS5000A_RANGE.PS5000A_2V,
+            channelRange,
             0.0f);
         Console.WriteLine($"[SetChannel] status=0x{status:X8}");
 
@@ -74,11 +77,15 @@ class DebugReadExample
         status = ApiWrapper.ps5000aGetTimebase(handle, timebase, BUFFER_SIZE, out timeIntervalNs, out maxSamples, 0);
         Console.WriteLine($"[GetTimebase] status=0x{status:X8}, timeIntervalNs={timeIntervalNs}, maxSamples={maxSamples}");
 
-        // --- 6. Disable trigger ---
+        // --- 6. Configure rising-edge trigger on External channel ---
+        double triggerAdc = (triggerVoltage * 1000.0 * externalMaxAdc) / externalRangeMv;
+        triggerAdc = Math.Max(short.MinValue, Math.Min(short.MaxValue, triggerAdc));
+        short triggerThresholdAdc = (short)Math.Round(triggerAdc);
+        Console.WriteLine($"[Trigger] External threshold={triggerVoltage} V => {triggerThresholdAdc} ADC counts");
         status = ApiWrapper.ps5000aSetSimpleTrigger(
-            handle, 0,
-            ApiWrapper.PS5000A_CHANNEL.PS5000A_CHANNEL_A,
-            0,
+            handle, 1,
+            ApiWrapper.PS5000A_CHANNEL.PS5000A_EXTERNAL,
+            triggerThresholdAdc,
             ApiWrapper.PS5000A_THRESHOLD_DIRECTION.PS5000A_RISING,
             0, 0);
         Console.WriteLine($"[SetSimpleTrigger] status=0x{status:X8}");
@@ -113,14 +120,6 @@ class DebugReadExample
             ApiWrapper.PS5000A_RATIO_MODE.PS5000A_RATIO_MODE_NONE, 0, null);
         Console.WriteLine($"[GetValues] status=0x{status:X8}, sampleCount={sampleCount}");
 
-        // --- 10. Check first few samples ---
-        Console.WriteLine("[Preview] First 10 raw samples:");
-        for (int i = 0; i < Math.Min(10, sampleCount); i++)
-        {
-            Console.Write($"{buffer[i]} ");
-        }
-        Console.WriteLine("\n--------------------------------");
-
         // --- 11. Write to file ---
         using (StreamWriter sw = new StreamWriter("channel_a_data.txt"))
         {
@@ -128,13 +127,13 @@ class DebugReadExample
             sw.WriteLine("================================");
             sw.WriteLine($"Samples: {sampleCount}");
             sw.WriteLine($"Timebase: {timebase} (Sample interval: {timeIntervalNs} ns)");
-            sw.WriteLine("Range: 2V, DC coupled\n");
-            sw.WriteLine("Sample\tTime(ns)\tADC\tmV");
-            sw.WriteLine("------\t--------\t---\t--");
+            sw.WriteLine($"Range: +-2V, DC coupled\n");
+            sw.WriteLine("Sample\t\tTime(ns)\t\tADC\t\tmV");
+            sw.WriteLine("------\t\t--------\t\t---\t\t--");
 
             for (int i = 0; i < sampleCount; i++)
             {
-                int mv = AdcToMv(buffer[i], ApiWrapper.PS5000A_RANGE.PS5000A_2V, maxADC);
+                int mv = AdcToMv(buffer[i], channelRange, maxADC);
                 sw.WriteLine($"{i}\t{(long)i * timeIntervalNs}\t{buffer[i]}\t{mv}");
             }
         }
