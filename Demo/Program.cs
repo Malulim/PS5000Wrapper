@@ -128,13 +128,13 @@ class DebugReadExample
             sw.WriteLine($"Samples: {sampleCount}");
             sw.WriteLine($"Timebase: {timebase} (Sample interval: {timeIntervalNs} ns)");
             sw.WriteLine($"Range: +-2V, DC coupled\n");
-            sw.WriteLine("Sample\t\tTime(ns)\t\tADC\t\tmV");
-            sw.WriteLine("------\t\t--------\t\t---\t\t--");
+            sw.WriteLine("Sample\tTime(ns)\t\tADC\t\tmV");
+            sw.WriteLine("------\t--------\t\t---\t\t--");
 
             for (int i = 0; i < sampleCount; i++)
             {
                 int mv = AdcToMv(buffer[i], channelRange, maxADC);
-                sw.WriteLine($"{i}\t{(long)i * timeIntervalNs}\t{buffer[i]}\t{mv}");
+                sw.WriteLine($"{i}\t\t{(long)i * timeIntervalNs}\t\t{buffer[i]}\t\t{mv}");
             }
         }
 
